@@ -10,23 +10,31 @@ import com.gridnine.testing.model.Flight;
 import com.gridnine.testing.model.FlightBuilder;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 public class Main {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws ExecutionException, InterruptedException {
         List<Flight> flights = FlightBuilder.createFlights();
 
         FlightsPrinter.print("Все тестовые перелёты", flights);
 
         Filter filter1 = new PastDepartureFilter();
-        List<Flight> filter1Result = FlightFilterService.apply(filter1, flights);
-        FlightsPrinter.print(filter1.rule().label(), filter1Result);
-
         Filter filter2 = new ArrivalBeforeTakeoffFilter();
-        List<Flight> filter2Result = FlightFilterService.apply(filter2, flights);
-        FlightsPrinter.print(filter2.rule().label(), filter2Result);
-
         Filter filter3 = new TooLongGroundTimeFilter();
-        List<Flight> filter3Result = FlightFilterService.apply(filter3, flights);
-        FlightsPrinter.print(filter3.rule().label(), filter3Result);
+        CompletableFuture<Void> f1 = CompletableFuture.supplyAsync(() ->
+                        FlightFilterService.apply(filter1, flights))
+                .thenAccept(result -> FlightsPrinter.print(filter1.rule().label(), result));
+
+        CompletableFuture<Void> f2 = CompletableFuture.supplyAsync(() ->
+                        FlightFilterService.apply(filter2, flights))
+                .thenAccept(result -> FlightsPrinter.print(filter2.rule().label(), result));
+
+        CompletableFuture<Void> f3 = CompletableFuture.supplyAsync(() ->
+                        FlightFilterService.apply(filter3, flights))
+                .thenAccept(result -> FlightsPrinter.print(filter3.rule().label(), result));
+
+        CompletableFuture.allOf(f1, f2, f3).get();
+
     }
 }
